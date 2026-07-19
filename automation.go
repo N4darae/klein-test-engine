@@ -114,18 +114,27 @@ func RunPhase1(cfg AutoConfig) error {
 	}
 	rec.Shot("bat-dau")
 
-	// 2. launcher START -> world Bera -> vào channel
-	if err := clickStep(rec, a("start.png"), cfg.Threshold, 60*time.Second); err != nil {
+	// 2. Check for Updates: click -> chờ dialog kết quả -> bấm OK.
+	// Nếu có bản mới launcher sẽ tự tải; dialog cuối cùng luôn có nút OK để đóng.
+	// (nút launcher hay bị cánh hoa sakura bay đè -> để ngưỡng thấp 0.72)
+	if err := clickStep(rec, a("check_update.png"), 0.72, 30*time.Second); err != nil {
+		rec.Logf("cảnh báo: %v (bỏ qua bước update)", err)
+	} else if err := clickStep(rec, a("update_ok.png"), 0.72, 180*time.Second); err != nil {
+		rec.Logf("cảnh báo: không thấy nút OK dialog update: %v", err)
+	}
+
+	// 3. launcher START -> world Bera -> vào channel
+	if err := clickStep(rec, a("start.png"), 0.72, 60*time.Second); err != nil {
 		return err
 	}
-	if err := clickStep(rec, a("world_bera.png"), cfg.Threshold, 60*time.Second); err != nil {
+	if err := clickStep(rec, a("world_bera.png"), 0.72, 60*time.Second); err != nil {
 		return err
 	}
 	if err := clickStep(rec, a("go_channel.png"), 0.72, 30*time.Second); err != nil {
 		return err
 	}
 
-	// 3. đợi màn chọn nhân vật (match card tĩnh) rồi click Play (offset xuống dưới)
+	// 4. đợi màn chọn nhân vật (match card tĩnh) rồi click Play (offset xuống dưới)
 	rec.Logf("đợi màn chọn nhân vật...")
 	m, ok := waitForImage(a("play_card.png"), 0.85, 180*time.Second, 2*time.Second, rec)
 	if !ok {

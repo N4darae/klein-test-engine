@@ -5,6 +5,8 @@ sẽ tìm các ảnh này để biết click chỗ nào.
 
 | File | Là gì | Dùng ở bước |
 |---|---|---|
+| `check_update.png` | Link **Check for Updates** trên launcher | click để lấy update |
+| `update_ok.png`    | Nút **OK** dialog kết quả update         | đóng dialog sau khi check |
 | `start.png`     | Nút **START!!** trên launcher KleinNetwork | click khởi động game |
 | `world_bera.png`| Nút world **Bera** (màn chọn World)        | click chọn world |
 | `go_channel.png`| Nút **Go to Selected Channel**             | click vào channel |

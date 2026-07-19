@@ -42,9 +42,10 @@ load xong → click **Play**. Mỗi bước chụp screenshot + ghi log vào
 .\klein.exe auto -launcher "C:\path\to\KleinNetwork.exe"
 ```
 
-- Flow thực tế: **START → chọn world Bera → vào channel → màn chọn nhân vật → Play**.
-- Cần 4 ảnh mẫu trong `assets/`: `start.png`, `world_bera.png`, `go_channel.png`,
-  `play_card.png` — xem `assets/README.md`.
+- Flow thực tế: **Check for Updates → OK → START → chọn world Bera → vào channel
+  → màn chọn nhân vật → Play**.
+- Cần 6 ảnh mẫu trong `assets/`: `check_update.png`, `update_ok.png`, `start.png`,
+  `world_bera.png`, `go_channel.png`, `play_card.png` — xem `assets/README.md`.
 - Nút **Play** có shine động → match card tĩnh (`play_card.png`) rồi click Play theo offset.
 - Nếu launcher đã mở sẵn thì bỏ `-launcher` cũng được (chỉ cần khi phải tự mở).
 - Ngưỡng match chỉnh bằng `-th` (mặc định 0.8); `probe` để đo confidence trước.
