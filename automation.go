@@ -107,12 +107,20 @@ func RunPhase1(cfg AutoConfig) error {
 	case cfg.LauncherPath == "":
 		return fmt.Errorf("launcher chưa chạy và chưa cấu hình đường dẫn (dùng -launcher hoặc env KLEIN_LAUNCHER)")
 	default:
-		rec.Logf("launcher chưa chạy -> mở as admin: %s", cfg.LauncherPath)
-		if err := startAsAdmin(cfg.LauncherPath); err != nil {
+		rec.Logf("launcher chưa chạy -> mở (plain): %s", cfg.LauncherPath)
+		if err := startLauncher(cfg.LauncherPath); err != nil {
 			return fmt.Errorf("mở launcher: %w", err)
 		}
 	}
 	rec.Shot("bat-dau")
+
+	// 1b. đợi launcher sẵn sàng = nút START hiện. Cold-start launcher CEF load
+	// khá lâu (~30s) nên cho timeout rộng; nếu đã chạy sẵn thì thấy ngay.
+	if _, ok := waitForImage(a("start.png"), 0.72, 120*time.Second, 2*time.Second, rec); !ok {
+		rec.Shot("launcher-chua-san-sang")
+		return fmt.Errorf("launcher không hiện màn START (chưa load xong?)")
+	}
+	rec.Shot("launcher-san-sang")
 
 	// 2. Check for Updates: click -> chờ dialog kết quả -> bấm OK.
 	// Nếu có bản mới launcher sẽ tự tải; dialog cuối cùng luôn có nút OK để đóng.

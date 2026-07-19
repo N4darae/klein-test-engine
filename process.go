@@ -17,17 +17,19 @@ func procRunning(name string) (bool, []int, error) {
 	return len(ids) > 0, ids, nil
 }
 
-// startAsAdmin mở exe với quyền admin qua PowerShell Start-Process -Verb RunAs
-// (sẽ bật hộp thoại UAC). Trả về khi lệnh PowerShell kết thúc; process con
-// (launcher) chạy độc lập sau đó.
+// startLauncher mở launcher qua PowerShell Start-Process (KHÔNG -Verb RunAs).
+// Process con chạy độc lập, kế thừa mức quyền của tiến trình auto: nếu auto
+// đang chạy as admin thì launcher cũng elevated -> click/phím vào được cửa sổ
+// của nó (Windows UIPI).
 //
-// LƯU Ý: launcher/game chạy elevated thì tiến trình auto (klein.exe) cũng phải
-// chạy as admin mới gửi được click/phím vào cửa sổ của chúng (Windows UIPI).
-func startAsAdmin(path string) error {
+// LƯU Ý: KHÔNG dùng -Verb RunAs khi bản thân auto đã elevated — double-elevation
+// làm launcher CEF này sinh process lặp và không hiện cửa sổ. Muốn game elevated,
+// hãy chạy klein.exe as admin (PowerShell as admin) rồi để nó mở launcher plain.
+func startLauncher(path string) error {
 	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command",
-		fmt.Sprintf("Start-Process -FilePath %q -Verb RunAs", path))
+		fmt.Sprintf("Start-Process -FilePath %q", path))
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("Start-Process RunAs: %w: %s", err, out)
+		return fmt.Errorf("Start-Process: %w: %s", err, out)
 	}
 	return nil
 }
