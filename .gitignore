@@ -1,0 +1,9 @@
+# binaries
+*.exe
+
+# Go build/test cache
+/vendor/
+
+# OS
+Thumbs.db
+Desktop.ini
