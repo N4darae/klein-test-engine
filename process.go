@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/go-vgo/robotgo"
 )
@@ -17,19 +18,23 @@ func procRunning(name string) (bool, []int, error) {
 	return len(ids) > 0, ids, nil
 }
 
-// startLauncher mở launcher qua PowerShell Start-Process (KHÔNG -Verb RunAs).
-// Process con chạy độc lập, kế thừa mức quyền của tiến trình auto: nếu auto
-// đang chạy as admin thì launcher cũng elevated -> click/phím vào được cửa sổ
-// của nó (Windows UIPI).
-//
-// LƯU Ý: KHÔNG dùng -Verb RunAs khi bản thân auto đã elevated — double-elevation
-// làm launcher CEF này sinh process lặp và không hiện cửa sổ. Muốn game elevated,
-// hãy chạy klein.exe as admin (PowerShell as admin) rồi để nó mở launcher plain.
+// startLauncher mở launcher với quyền admin (game cần admin để chạy), nhưng
+// TỰ PHÁT HIỆN mức quyền hiện tại để tránh double-elevation:
+//   - klein.exe ĐÃ chạy as admin  -> Start-Process plain (con kế thừa elevated).
+//     Nếu dùng -Verb RunAs ở đây, launcher CEF sẽ sinh process lặp + không hiện
+//     cửa sổ.
+//   - klein.exe CHƯA admin        -> Start-Process -Verb RunAs (bật UAC nâng quyền)
+//     để launcher (và game) được elevated.
+// Nhờ vậy game luôn chạy as admin dù klein.exe chạy ở mức quyền nào.
 func startLauncher(path string) error {
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command",
-		fmt.Sprintf("Start-Process -FilePath %q", path))
+	p := strings.ReplaceAll(path, "'", "''") // escape cho chuỗi single-quote PS
+	ps := fmt.Sprintf(
+		`$p='%s';`+
+			`$admin=(New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator);`+
+			`if($admin){Start-Process -FilePath $p}else{Start-Process -FilePath $p -Verb RunAs}`, p)
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", ps)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("Start-Process: %w: %s", err, out)
+		return fmt.Errorf("mở launcher: %w: %s", err, out)
 	}
 	return nil
 }
