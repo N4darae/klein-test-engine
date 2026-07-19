@@ -28,6 +28,40 @@ Test:
 go test -tags customenv -v .
 ```
 
+## Auto-login (phase 1)
+
+Tự đăng nhập vào game: đảm bảo launcher chạy → click **START** → đợi nhân vật
+load xong → click **Play**. Mỗi bước chụp screenshot + ghi log vào
+`records/<timestamp>/`.
+
+```powershell
+. .\env.ps1
+# 1) tạo ảnh mẫu (crop nút START, Play từ ảnh này -> assets/start.png, assets/play.png)
+.\klein.exe capture shot.png
+# 2) chạy auto (mở launcher as admin nếu chưa chạy)
+.\klein.exe auto -launcher "C:\path\to\KleinNetwork.exe"
+```
+
+- Flow thực tế: **START → chọn world Bera → vào channel → màn chọn nhân vật → Play**.
+- Cần 4 ảnh mẫu trong `assets/`: `start.png`, `world_bera.png`, `go_channel.png`,
+  `play_card.png` — xem `assets/README.md`.
+- Nút **Play** có shine động → match card tĩnh (`play_card.png`) rồi click Play theo offset.
+- Nếu launcher đã mở sẵn thì bỏ `-launcher` cũng được (chỉ cần khi phải tự mở).
+- Ngưỡng match chỉnh bằng `-th` (mặc định 0.8); `probe` để đo confidence trước.
+
+> **QUAN TRỌNG — quyền admin:** nếu launcher/game chạy **as admin** (elevated),
+> thì `klein.exe` cũng phải chạy **as admin** mới gửi được chuột/phím vào cửa sổ
+> của chúng (cơ chế UIPI của Windows). Mở PowerShell as admin rồi chạy `klein auto`.
+
+### Lệnh con
+
+| Lệnh | Việc |
+|---|---|
+| `klein auto [-launcher .. -assets .. -out .. -th ..]` | chạy auto-login phase 1 |
+| `klein capture [out.png]` | chụp full màn hình ra file (để crop ảnh mẫu) |
+| `klein probe <template.png> [threshold]` | in vị trí + confidence, KHÔNG click (để tune) |
+| `klein find <template.png> [threshold]` | tìm ảnh rồi click (hành vi cũ) |
+
 ## Lưu ý quan trọng
 
 - **Phải build với `-tags customenv`.** gocv v0.41 hardcode tên lib OpenCV `4110`
@@ -49,6 +83,9 @@ Tesseract.exe đã cài nhưng **thiếu dev headers** → binding Go `gosseract
 ## File
 
 - `finder.go` — `FindInMat` (lõi matching), `FindOnScreen`, `FindAndClick`.
-- `main.go` — CLI demo.
+- `automation.go` — `RunPhase1` + `AutoConfig`, `waitForImage` (luồng auto-login).
+- `process.go` — `procRunning` (check PID), `startAsAdmin` (mở exe as admin).
+- `recorder.go` — `Recorder`: screenshot đánh số + log ra `records/<timestamp>/`.
+- `main.go` — CLI: `auto`, `capture`, `find`.
 - `finder_test.go` — test tách lõi matching (same-frame, conf≈1.0) khỏi biến thiên chụp lại.
 - `env.ps1` / `build.ps1` — cấu hình môi trường + build.

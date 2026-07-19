@@ -4,6 +4,10 @@
 # Go build/test cache
 /vendor/
 
+# records auto (screenshot + log mỗi lần chạy)
+/records/
+capture*.png
+
 # OS
 Thumbs.db
 Desktop.ini
