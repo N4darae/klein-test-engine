@@ -5,9 +5,24 @@ import (
 	"fmt"
 	"image/png"
 	"os"
+	"path/filepath"
 
 	"github.com/go-vgo/robotgo"
 )
+
+// đường dẫn launcher mặc định (dùng khi không truyền -launcher và không set
+// env KLEIN_LAUNCHER) — để double-click chạy được ngay.
+const defaultLauncherPath = `P:\Feature\KleinNetwork.exe`
+
+// exeDir trả về thư mục chứa klein.exe (để tìm assets/records khi double-click
+// từ thư mục khác). Fallback về "." nếu không lấy được.
+func exeDir() string {
+	p, err := os.Executable()
+	if err != nil {
+		return "."
+	}
+	return filepath.Dir(p)
+}
 
 func usage() {
 	fmt.Println("usage:")
@@ -23,8 +38,9 @@ func usage() {
 
 func main() {
 	if len(os.Args) < 2 {
-		usage()
-		os.Exit(1)
+		// double-click / không tham số -> chạy auto luôn (không in usage rồi tắt)
+		cmdAuto(nil)
+		return
 	}
 	switch os.Args[1] {
 	case "auto":
@@ -35,6 +51,8 @@ func main() {
 		cmdProbe(os.Args[2:])
 	case "find":
 		cmdFind(os.Args[2:])
+	case "clickxy":
+		cmdClickXY(os.Args[2:])
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -43,14 +61,49 @@ func main() {
 	}
 }
 
-// cmdAuto chạy luồng auto-login phase 1.
+// cmdClickXY di chuột tới toạ độ tuyệt đối (X,Y) trên màn hình rồi click trái
+// bằng robotgo — KHÔNG dùng image-match. Dùng khi đã tự tính toạ độ từ window rect.
+func cmdClickXY(args []string) {
+	if len(args) < 2 {
+		fmt.Println("usage: klein clickxy X Y")
+		os.Exit(1)
+	}
+	var x, y int
+	if _, err := fmt.Sscanf(args[0], "%d", &x); err != nil {
+		fmt.Fprintln(os.Stderr, "X không hợp lệ:", err)
+		os.Exit(1)
+	}
+	if _, err := fmt.Sscanf(args[1], "%d", &y); err != nil {
+		fmt.Fprintln(os.Stderr, "Y không hợp lệ:", err)
+		os.Exit(1)
+	}
+	robotgo.Move(x, y)
+	robotgo.MilliSleep(150)
+	gx, gy := robotgo.Location()
+	sw, sh := robotgo.GetScreenSize()
+	fmt.Printf("passed=(%d,%d) robotgo.Location=(%d,%d) screen=%dx%d scale=%.3f\n", x, y, gx, gy, sw, sh, robotgo.ScaleF())
+	robotgo.Click("left", false)
+	robotgo.MilliSleep(120)
+	fmt.Printf("robotgo đã click tại (%d,%d)\n", x, y)
+}
+
+// cmdAuto chạy luồng auto-login phase 1. Mặc định lấy launcher path từ env
+// KLEIN_LAUNCHER hoặc defaultLauncherPath, và tìm assets/records cạnh exe — nên
+// double-click chạy được ngay không cần tham số.
 func cmdAuto(args []string) {
 	cfg := DefaultAutoConfig()
+	dir := exeDir()
+
+	defLauncher := os.Getenv("KLEIN_LAUNCHER")
+	if defLauncher == "" {
+		defLauncher = defaultLauncherPath
+	}
+
 	fs := flag.NewFlagSet("auto", flag.ExitOnError)
-	fs.StringVar(&cfg.LauncherPath, "launcher", os.Getenv("KLEIN_LAUNCHER"), "đường dẫn KleinNetwork.exe (mở nếu chưa chạy)")
+	fs.StringVar(&cfg.LauncherPath, "launcher", defLauncher, "đường dẫn KleinNetwork.exe (mở nếu chưa chạy)")
 	fs.StringVar(&cfg.LauncherProc, "proc", cfg.LauncherProc, "tên tiến trình launcher để check PID")
-	fs.StringVar(&cfg.AssetsDir, "assets", cfg.AssetsDir, "thư mục ảnh mẫu")
-	fs.StringVar(&cfg.OutDir, "out", cfg.OutDir, "thư mục lưu record")
+	fs.StringVar(&cfg.AssetsDir, "assets", filepath.Join(dir, "assets"), "thư mục ảnh mẫu")
+	fs.StringVar(&cfg.OutDir, "out", filepath.Join(dir, "records"), "thư mục lưu record")
 	th := float64(cfg.Threshold)
 	fs.Float64Var(&th, "th", th, "ngưỡng match ảnh (0..1)")
 	fs.Parse(args)

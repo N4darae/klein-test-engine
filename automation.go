@@ -114,37 +114,45 @@ func RunPhase1(cfg AutoConfig) error {
 	}
 	rec.Shot("bat-dau")
 
-	// 1b. đợi launcher sẵn sàng = nút START hiện. Cold-start launcher CEF load
-	// khá lâu (~30s) nên cho timeout rộng; nếu đã chạy sẵn thì thấy ngay.
+	// 1a. đưa launcher lên foreground. Console Chay-Auto đang foreground -> launcher
+	// CEF render MỜ -> start.png match ~0.40 ở SAI vị trí (nút SETTINGS) -> click nhầm.
+	// Active launcher để nó vẽ sáng lại, START mới match đúng chỗ (~0.82).
+	if running, ids, err := procRunning(cfg.LauncherProc); err != nil {
+		rec.Logf("re-check pid lỗi: %v", err)
+	} else if running && len(ids) > 0 {
+		if err := activateWindow(ids[0]); err != nil {
+			rec.Logf("active launcher lỗi: %v", err)
+		} else {
+			rec.Logf("đã active launcher (pid=%d)", ids[0])
+		}
+	}
+
+	// 1b. đợi launcher sẵn sàng = nút START hiện. Ngưỡng 0.72: khi launcher active/sáng
+	// (bước 1a) START match ~0.82 đúng chỗ; giữ ngưỡng cao để LOẠI match rác lúc mờ
+	// (nếu chấp nhận ~0.40 sẽ click nhầm nút SETTINGS).
 	if _, ok := waitForImage(a("start.png"), 0.72, 120*time.Second, 2*time.Second, rec); !ok {
 		rec.Shot("launcher-chua-san-sang")
-		return fmt.Errorf("launcher không hiện màn START (chưa load xong?)")
+		return fmt.Errorf("launcher không hiện màn START (chưa load xong / chưa active?)")
 	}
 	rec.Shot("launcher-san-sang")
 
-	// 2. Check for Updates: click -> chờ dialog kết quả -> bấm OK.
-	// Nếu có bản mới launcher sẽ tự tải; dialog cuối cùng luôn có nút OK để đóng.
-	// (nút launcher hay bị cánh hoa sakura bay đè -> để ngưỡng thấp 0.72)
-	if err := clickStep(rec, a("check_update.png"), 0.72, 30*time.Second); err != nil {
-		rec.Logf("cảnh báo: %v (bỏ qua bước update)", err)
-	} else if err := clickStep(rec, a("update_ok.png"), 0.72, 180*time.Second); err != nil {
-		rec.Logf("cảnh báo: không thấy nút OK dialog update: %v", err)
-	}
+	// 2. (BỎ bước "Check for Updates": dialog của nó đè lên START làm bước click START
+	//     bên dưới fail. Update áp qua auto-update khi bấm START.)
 
 	// 3. launcher START -> world Bera -> vào channel
 	if err := clickStep(rec, a("start.png"), 0.72, 60*time.Second); err != nil {
 		return err
 	}
-	if err := clickStep(rec, a("world_bera.png"), 0.72, 60*time.Second); err != nil {
+	if err := clickStep(rec, a("world_bera.png"), 0.60, 60*time.Second); err != nil {
 		return err
 	}
-	if err := clickStep(rec, a("go_channel.png"), 0.72, 30*time.Second); err != nil {
+	if err := clickStep(rec, a("go_channel.png"), 0.60, 30*time.Second); err != nil {
 		return err
 	}
 
 	// 4. đợi màn chọn nhân vật (match card tĩnh) rồi click Play (offset xuống dưới)
 	rec.Logf("đợi màn chọn nhân vật...")
-	m, ok := waitForImage(a("play_card.png"), 0.85, 180*time.Second, 2*time.Second, rec)
+	m, ok := waitForImage(a("play_card.png"), 0.72, 180*time.Second, 2*time.Second, rec)
 	if !ok {
 		rec.Shot("khong-thay-char-select")
 		return fmt.Errorf("không tới được màn chọn nhân vật")
